@@ -7,98 +7,120 @@ import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /**
- * @title aureusToken
+ * @title AureusToken
  * @author Fraol Bereket
- * @notice This is the aureus tokens contract. this are directly pegged tokens that are backed by real world assets.
+ * @notice This is the Aureus tokens contract. These are directly pegged tokens that are backed by real-world assets.
  */
-contract aureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
+contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
     using FunctionsRequest for FunctionsRequest.Request;
 
-    // JavaScript source code
-    // Fetch character name from the Star Wars API.
-    // Documentation: https://swapi.info/people
-    string source =
-        "const characterId = args[0];"
-        "const apiResponse = await Functions.makeHttpRequest({"
-        "url: `https://swapi.info/api/people/${characterId}/`"
-        "});"
-        "if (apiResponse.error) {"
-        "throw Error('Request failed');"
-        "}"
-        "const { data } = apiResponse;"
-        "return Functions.encodeString(data.name);";
+    struct TokenInfo {
+        string mintSource;
+        string redeemSource;
+        address priceFeed;
+        uint256 collateralRatio;
+        uint256 minimumRedemptionAmount;
+    }
 
-    // State variables to store the last request ID, response, and error
-    bytes32 public s_lastRequestId;
-    bytes public s_lastResponse;
-    bytes public s_lastError;
+    /// variables
+    string immutable i_mintSource;
+    string immutable i_redeemSource;
+    address immutable i_priceFeed;
+    uint256 immutable i_collateralRatio;
+    uint256 immutable i_minimumRedemptionAmount;
 
-    //Callback gas limit
-    uint32 gasLimit = 1500000;
+    mapping(string => TokenInfo) public tokenInfo;
+    mapping(bytes32 => string) private requestToToken;
+    mapping(address => mapping(string => uint256)) private userWithdrawals;
 
-    /// immutable values
+    uint32 private constant GAS_LIMIT = 300_000;
     bytes32 immutable i_donId;
+
+    // Events
+    event Response(bytes32 indexed requestId, bytes response, bytes err);
 
     constructor(
         string memory tokenName,
-        string memory tokenId,
+        string memory tokenSymbol,
         address functionsRouter,
         bytes32 donId,
-        address tokenPriceFeed,
-        address usdcPriceFeed
+        string memory mintSource,
+        string memory redeemSource,
+        address priceFeed,
+        uint256 collateralRatio,
+        uint256 minimumRedemptionAmount
     )
         FunctionsClient(functionsRouter)
         ConfirmedOwner(msg.sender)
-        ERC20(tokenName, tokenId)
+        ERC20(tokenName, tokenSymbol)
     {
         i_donId = donId;
+        i_mintSource= mintSource,
+        i_redeemSource= redeemSource,
+        i_priceFeed= priceFeed,
+        i_collateralRatio= collateralRatio,
+        i_minimumRedemptionAmount= minimumRedemptionAmount
+       
     }
 
-    /**
-     * @notice Sends an HTTP request for character information
-     * @param subscriptionId The ID for the Chainlink subscription
-     * @param args The arguments to pass to the HTTP request
-     * @return requestId The ID of the request
-     */
-    function sendRequest(
+    function sendMintRequest(
+        string memory symbol,
         uint64 subscriptionId,
-        string[] calldata args
+        uint256 amountOfTokensToMint
     ) external onlyOwner returns (bytes32 requestId) {
+        TokenInfo memory info = tokenInfo[symbol];
         FunctionsRequest.Request memory req;
-        req.initializeRequestForInlineJavaScript(source); // Initialize the request with JS code
-        if (args.length > 0) req.setArgs(args); // Set the arguments for the request
+        req.initializeRequestForInlineJavaScript(info.mintSource);
 
-        // Send the request and store the request ID
-        s_lastRequestId = _sendRequest(
+        requestId = _sendRequest(
             req.encodeCBOR(),
             subscriptionId,
-            gasLimit,
+            GAS_LIMIT,
             i_donId
         );
+        requestToToken[requestId] = symbol;
 
-        return s_lastRequestId;
+        return requestId;
     }
 
-    /**
-     * @notice Callback function for fulfilling a request
-     * @param requestId The ID of the request to fulfill
-     * @param response The HTTP response data
-     * @param err Any errors from the Functions request
-     */
+    function sendRedeemRequest(
+        string memory symbol,
+        uint64 subscriptionId,
+        uint256 amountToRedeem
+    ) external returns (bytes32 requestId) {
+        TokenInfo memory info = tokenInfo[symbol];
+        require(
+            amountToRedeem >= info.minimumRedemptionAmount,
+            "Below minimum redemption amount"
+        );
+
+        FunctionsRequest.Request memory req;
+        req.initializeRequestForInlineJavaScript(info.redeemSource);
+
+        requestId = _sendRequest(
+            req.encodeCBOR(),
+            subscriptionId,
+            GAS_LIMIT,
+            i_donId
+        );
+        requestToToken[requestId] = symbol;
+
+        _burn(msg.sender, amountToRedeem);
+        return requestId;
+    }
+
     function fulfillRequest(
         bytes32 requestId,
         bytes memory response,
         bytes memory err
     ) internal override {
-        if (s_lastRequestId != requestId) {
-            // revert UnexpectedRequestID(requestId); // Check if request IDs match
-        }
-        // Update the contract's state variables with the response and any errors
-        // s_lastResponse = response;
-        // character = string(response);
-        // s_lastError = err;
+        string memory symbol = requestToToken[requestId];
+        
+    }
 
-        // Emit an event to log the response
-        // emit Response(requestId, character, s_lastResponse, s_lastError);
+    function withdraw(string memory symbol) external {
+        uint256 amountToWithdraw = userWithdrawals[msg.sender][symbol];
+        userWithdrawals[msg.sender][symbol] = 0;
+        // Transfer the corresponding token to the user
     }
 }
