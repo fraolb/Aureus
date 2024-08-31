@@ -38,14 +38,16 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
     uint256 constant ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 constant COLLATERAL_RATION = 200;
     uint256 constant COLLATERAL_PRECISION = 100;
-    uint256 constant MINIMUM_WITHDRAWL_AMOUNT = 100e6;
+    uint256 constant MINIMUM_WITHDRAWL_AMOUNT = 100e18;
 
     /// variables
     uint32 private constant GAS_LIMIT = 300_000;
     bytes32 immutable i_donId;
     uint64 immutable i_subId;
 
-    address immutable i_priceFeed;
+    address immutable i_usdcToken;
+    address immutable i_tokenPriceFeed;
+    address immutable i_usdcPriceFeed;
     uint256 immutable i_collateralRatio;
     uint256 immutable i_minimumRedemptionAmount;
 
@@ -55,6 +57,8 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
     uint256 s_portfolioBalance;
     mapping(bytes32 requestId => aTokenRequest request)
         private s_requestIdToRequest;
+    mapping(address user => uint256 pendingWithdrawlAmount)
+        private s_userToWithdrawlAmount;
 
     mapping(bytes32 => string) private requestToToken;
     mapping(address => mapping(string => uint256)) private userWithdrawals;
@@ -70,7 +74,9 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
         bytes32 donId,
         string memory mintSource,
         string memory redeemSource,
-        address priceFeed,
+        address usdcToken,
+        address tokenPriceFeed,
+        address usdcPriceFeed,
         uint256 collateralRatio,
         uint256 minimumRedemptionAmount
     )
@@ -82,7 +88,9 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
         i_donId = donId;
         s_mintSource = mintSource;
         s_redeemSource = redeemSource;
-        i_priceFeed = priceFeed;
+        i_usdcToken = usdcToken;
+        i_tokenPriceFeed = tokenPriceFeed;
+        i_usdcPriceFeed = usdcPriceFeed;
         i_collateralRatio = collateralRatio;
         i_minimumRedemptionAmount = minimumRedemptionAmount;
     }
@@ -107,26 +115,40 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
         return requestId;
     }
 
+    /**
+     * @notice This function is for users to sell their aureustokens to usdc.
+     * it sells the token on the broker, then buy usdc on the broker and send usdc to the contract for the user to withdraw
+     * @param amountToRedeem the amount of token to be sold
+     */
     function sendRedeemRequest(
-        string memory symbol,
-        uint64 subscriptionId,
         uint256 amountToRedeem
     ) external returns (bytes32 requestId) {
-        // require(
-        //     amountToRedeem >= info.minimumRedemptionAmount,
-        //     "Below minimum redemption amount"
-        // );
-        // FunctionsRequest.Request memory req;
-        // req.initializeRequestForInlineJavaScript(info.redeemSource);
-        // requestId = _sendRequest(
-        //     req.encodeCBOR(),
-        //     subscriptionId,
-        //     GAS_LIMIT,
-        //     i_donId
-        // );
-        // requestToToken[requestId] = symbol;
-        // _burn(msg.sender, amountToRedeem);
-        // return requestId;
+        uint256 amountTokenInUsdc = getUsdcValueOfUsd(
+            getUsdValueOfToken(amountToRedeem)
+        );
+
+        if (amountTokenInUsdc < MINIMUM_WITHDRAWL_AMOUNT) {
+            revert aToken__BelowMinimumRedemption();
+        }
+
+        FunctionsRequest.Request memory req;
+        req.initializeRequestForInlineJavaScript(s_redeemSource);
+
+        string[] memory args = new string[](2);
+        args[0] = amountToRedeem.toString();
+        args[1] = amountTokenInUsdc.toString();
+        req.setArgs(args);
+
+        requestId = _sendRequest(req.encodeCBOR(), i_subId, GAS_LIMIT, i_donId);
+        s_requestIdToRequest[requestId] = aTokenRequest(
+            amountToRedeem,
+            msg.sender,
+            MintOrRedeem.redeem
+        );
+
+        _burn(msg.sender, amountToRedeem);
+
+        return requestId;
     }
 
     function fulfillRequest(
@@ -173,7 +195,22 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
     function _redeemFulfillRequest(
         bytes32 requestId,
         bytes memory response
-    ) internal {}
+    ) internal {
+        uint256 usdcAmount = uint256(bytes32(response));
+        if (usdcAmount == 0) {
+            uint256 amountOfTokenBurned = s_requestIdToRequest[requestId]
+                .amountOfToken;
+            _mint(
+                s_requestIdToRequest[requestId].requester,
+                amountOfTokenBurned
+            );
+            return;
+        }
+
+        s_userToWithdrawlAmount[
+            s_requestIdToRequest[requestId].requester
+        ] += usdcAmount;
+    }
 
     function _getCollateralRationAdjustedTotalBalance(
         uint256 amountOfTokenToMint
@@ -195,14 +232,43 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
     }
 
     function getTokenPrice() public view returns (uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(i_priceFeed);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            i_tokenPriceFeed
+        );
         (, int256 price, , , ) = priceFeed.latestRoundData();
         return uint256(price) * ADDITIONAL_FEED_PRECISION;
     }
 
-    function withdraw(string memory symbol) external {
-        uint256 amountToWithdraw = userWithdrawals[msg.sender][symbol];
-        userWithdrawals[msg.sender][symbol] = 0;
-        // Transfer the corresponding token to the user
+    function getUsdcPrice() public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            i_usdcPriceFeed
+        );
+        (, int256 price, , , ) = priceFeed.latestRoundData();
+        return uint256(price) * ADDITIONAL_FEED_PRECISION;
+    }
+
+    function getUsdcValueOfUsd(
+        uint256 usdAmount
+    ) public view returns (uint256) {
+        return (usdAmount * getUsdcPrice()) / PRECISION;
+    }
+
+    function getTokenValueOfUsd(
+        uint256 tokenAmount
+    ) public view returns (uint256) {
+        return (tokenAmount * getTokenPrice()) / PRECISION;
+    }
+
+    function withdraw() external {
+        uint256 amountToWithdraw = s_userToWithdrawlAmount[msg.sender];
+        s_userToWithdrawlAmount[msg.sender] = 0;
+
+        bool success = ERC20(i_usdcToken).transfer(
+            msg.sender,
+            amountToWithdraw
+        );
+        if (!success) {
+            revert aToken__RedemptionFailed();
+        }
     }
 }
