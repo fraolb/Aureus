@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
 import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
@@ -48,8 +48,8 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
     address immutable i_usdcToken;
     address immutable i_tokenPriceFeed;
     address immutable i_usdcPriceFeed;
-    uint256 immutable i_collateralRatio;
-    uint256 immutable i_minimumRedemptionAmount;
+
+    //uint256 immutable i_minimumRedemptionAmount;
 
     address s_functionsRouter;
     string s_mintSource;
@@ -59,9 +59,6 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
         private s_requestIdToRequest;
     mapping(address user => uint256 pendingWithdrawlAmount)
         private s_userToWithdrawlAmount;
-
-    mapping(bytes32 => string) private requestToToken;
-    mapping(address => mapping(string => uint256)) private userWithdrawals;
 
     // Events
     event Response(bytes32 indexed requestId, bytes response, bytes err);
@@ -76,10 +73,10 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
         string memory redeemSource,
         address usdcToken,
         address tokenPriceFeed,
-        address usdcPriceFeed,
-        uint256 collateralRatio,
-        uint256 minimumRedemptionAmount
+        address usdcPriceFeed
     )
+        //uint256 collateralRatio,
+        //uint256 minimumRedemptionAmount
         FunctionsClient(functionsRouter)
         ConfirmedOwner(msg.sender)
         ERC20(tokenName, tokenSymbol)
@@ -91,8 +88,7 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
         i_usdcToken = usdcToken;
         i_tokenPriceFeed = tokenPriceFeed;
         i_usdcPriceFeed = usdcPriceFeed;
-        i_collateralRatio = collateralRatio;
-        i_minimumRedemptionAmount = minimumRedemptionAmount;
+        //i_minimumRedemptionAmount = minimumRedemptionAmount;
     }
 
     /**
@@ -228,7 +224,28 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
         uint256 amountOfTokenToMint
     ) internal view returns (uint256) {
         return
-            ((totalSupply() + amountOfTokenToMint) * getTokenPrice) / PRECISION;
+            ((totalSupply() + amountOfTokenToMint) * getTokenPrice()) /
+            PRECISION;
+    }
+
+    function withdraw() external {
+        uint256 amountToWithdraw = s_userToWithdrawlAmount[msg.sender];
+        s_userToWithdrawlAmount[msg.sender] = 0;
+
+        bool success = ERC20(i_usdcToken).transfer(
+            msg.sender,
+            amountToWithdraw
+        );
+        if (!success) {
+            revert aToken__RedemptionFailed();
+        }
+    }
+
+    //////////////////////////////////////////////////////
+    /*///////////   VIEW AND PURE //////////////////////*/
+
+    function getPortfolioBalance() public view returns (uint256) {
+        return s_portfolioBalance;
     }
 
     function getTokenPrice() public view returns (uint256) {
@@ -247,28 +264,44 @@ contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
         return uint256(price) * ADDITIONAL_FEED_PRECISION;
     }
 
-    function getUsdcValueOfUsd(
-        uint256 usdAmount
-    ) public view returns (uint256) {
-        return (usdAmount * getUsdcPrice()) / PRECISION;
-    }
-
-    function getTokenValueOfUsd(
+    function getUsdValueOfToken(
         uint256 tokenAmount
     ) public view returns (uint256) {
         return (tokenAmount * getTokenPrice()) / PRECISION;
     }
 
-    function withdraw() external {
-        uint256 amountToWithdraw = s_userToWithdrawlAmount[msg.sender];
-        s_userToWithdrawlAmount[msg.sender] = 0;
+    /*
+     * Pass the USD amount with 18 decimals (WAD)
+     * Return the redemptionCoin amount with 18 decimals (WAD)
+     *
+     * @param usdAmount - the amount of USD to convert to USDC in WAD
+     * @return the amount of redemptionCoin with 18 decimals (WAD)
+     */
+    function getUsdcValueOfUsd(
+        uint256 usdAmount
+    ) public view returns (uint256) {
+        return (usdAmount * PRECISION) / getUsdcPrice();
+    }
 
-        bool success = ERC20(i_usdcToken).transfer(
-            msg.sender,
-            amountToWithdraw
-        );
-        if (!success) {
-            revert aToken__RedemptionFailed();
-        }
+    function getTotalUsdValue() public view returns (uint256) {
+        return (totalSupply() * getTokenPrice()) / PRECISION;
+    }
+
+    function getCalculatedNewTotalValue(
+        uint256 addedNumberOfToken
+    ) public view returns (uint256) {
+        return
+            ((totalSupply() + addedNumberOfToken) * getTokenPrice()) /
+            PRECISION;
+    }
+
+    function getRequest(
+        bytes32 requestId
+    ) public view returns (aTokenRequest memory) {
+        return s_requestIdToRequest[requestId];
+    }
+
+    function getWithdrawalAmount(address user) public view returns (uint256) {
+        return s_userToWithdrawlAmount[user];
     }
 }
