@@ -64,7 +64,7 @@ const page = () => {
                 <div className="text-white text-lg font-semibold">From</div>
                 <div className="text-white text-lg font-semibold">To</div>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between gap-2 items-center">
                 <div className="flex items-center">
                   <img
                     src={fromNetowork.logo}
@@ -118,6 +118,11 @@ const page = () => {
                 Estimated Time
               </div>
             </div>
+          </div>
+          <div className="flex justify-center">
+            <button className="btn mt-2 text-center bg-green-600 rounded-lg shadow-lg w-full max-w-md p-2">
+              Bridge
+            </button>
           </div>
         </div>
       </div>
