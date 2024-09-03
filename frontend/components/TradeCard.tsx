@@ -30,7 +30,7 @@ const TradeCard = () => {
   const [buyToken, setBuyToken] = useState(tokens[1]);
 
   return (
-    <div className="bg-cardBg p-8 rounded-lg text-white w-full md:w-1/2">
+    <div className="bg-cardBg bg-opacity-10 p-8 rounded-lg text-white  w-full md:w-1/3">
       <div className="flex flex-col items-center justify-center ">
         {/* Sell Section */}
         <div className="flex flex-col bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
@@ -68,7 +68,7 @@ const TradeCard = () => {
         </div>
 
         {/* Exchange Icon */}
-        <div className="flex items-center justify-center my-6">
+        <div className="flex items-center justify-center my-3">
           <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center">
             <img src="/transfer.svg" alt="Exchange" className="w-6 h-6" />
           </div>
@@ -109,6 +109,11 @@ const TradeCard = () => {
           </div>
           <div className="mt-2 text-gray-400 text-right">Balance 0</div>
         </div>
+      </div>
+      <div className="flex justify-center">
+        <button className="btn mt-2 text-center bg-green-600 rounded-lg shadow-lg w-full max-w-md p-2">
+          Buy
+        </button>
       </div>
     </div>
   );

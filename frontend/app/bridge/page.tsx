@@ -28,7 +28,7 @@ const page = () => {
     <div className="min-h-screen bg-darkBg ">
       <Header />
       <div className="flex flex-col gap-2 md:flex-row justify-around p-8 space-y-8 md:space-y-0">
-        <div className="bg-cardBg p-8 rounded-lg text-white w-full md:w-1/2">
+        <div className="bg-cardBg bg-opacity-10 p-8 rounded-lg text-white ">
           <div className="flex flex-col items-center justify-center ">
             <div className="flex flex-col bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
               <div className="flex justify-between items-center mb-6">

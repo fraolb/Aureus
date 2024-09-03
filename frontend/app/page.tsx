@@ -2,6 +2,7 @@ import Image from "next/image";
 import Header from "@/components/Header";
 import TradeCard from "@/components/TradeCard";
 import Chart from "@/components/Chart";
+import Profile from "@/components/profile";
 
 export default function Home() {
   return (

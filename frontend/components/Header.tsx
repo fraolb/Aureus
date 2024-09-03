@@ -4,10 +4,10 @@ import { ConnectBtn } from "./connectButton";
 const Header: React.FC = () => {
   return (
     <header className="flex justify-between items-center p-4 bg-darkBg">
-      <div className="text-white text-2xl font-bold">Aureus</div>
+      <div className=" text-2xl font-bold">Aureus</div>
       <nav className="space-x-4">
-        <button className="text-white">Buy</button>
-        <button className="text-white">Bridges</button>
+        <button className="">Buy</button>
+        <button className="">Bridge</button>
       </nav>
       <div className="flex space-x-4 items-center">
         <ConnectBtn />

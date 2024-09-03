@@ -53,9 +53,9 @@ export const ConnectBtn = () => {
   }
 
   return (
-    <div className="max-w-5xl w-full flex items-center justify-between text-white gap-2">
+    <div className="max-w-5xl w-full flex items-center justify-between  gap-2">
       <div
-        className="flex justify-center items-center px-4 py-2 border border-neutral-700 bg-neutral-800/30 rounded-xl font-mono font-bold gap-x-2 cursor-pointer"
+        className="flex justify-center items-center px-4 py-2  bg-cardBg bg-opacity-10 rounded-xl font-mono font-bold gap-x-2 cursor-pointer"
         onClick={async () => openAccountModal?.()}
       >
         <div
@@ -72,7 +72,7 @@ export const ConnectBtn = () => {
         <p>{`${address?.slice(0, 4)}...${address?.slice(-4)}`}</p>
       </div>
       <button
-        className="btn flex justify-center items-center px-4 py-2 border border-neutral-700 bg-neutral-800/30 rounded-xl font-mono font-bold gap-x-2 cursor-pointer"
+        className="btn flex justify-center items-center px-4 py-2 bg-cardBg bg-opacity-10 rounded-xl font-mono font-bold gap-x-2 cursor-pointer"
         onClick={openChainModal}
       >
         Switch Network
