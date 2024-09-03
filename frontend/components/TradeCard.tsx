@@ -29,6 +29,11 @@ const TradeCard = () => {
   const [sellToken, setSellToken] = useState(tokens[0]);
   const [buyToken, setBuyToken] = useState(tokens[1]);
 
+  const handleSwitch = () => {
+    setSellToken(buyToken);
+    setBuyToken(sellToken);
+  };
+
   return (
     <div className="bg-cardBg bg-opacity-10 p-8 rounded-lg text-white  w-full md:w-1/3">
       <div className="flex flex-col items-center justify-center ">
@@ -69,9 +74,12 @@ const TradeCard = () => {
 
         {/* Exchange Icon */}
         <div className="flex items-center justify-center my-3">
-          <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center">
+          <button
+            onClick={() => handleSwitch()}
+            className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center"
+          >
             <img src="/transfer.svg" alt="Exchange" className="w-6 h-6" />
-          </div>
+          </button>
         </div>
 
         {/* Buy Section */}
