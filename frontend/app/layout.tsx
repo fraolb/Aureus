@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "@rainbow-me/rainbowkit/styles.css";
+import { headers } from "next/headers";
+import Providers from "./provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -14,9 +17,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookie = headers().get("cookie");
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <Providers cookie={cookie}>{children}</Providers>
+      </body>
     </html>
   );
 }
