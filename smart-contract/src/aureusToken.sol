@@ -13,7 +13,7 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/Ag
  * @author Fraol Bereket
  * @notice This is the Aureus tokens contract. These are directly pegged tokens that are backed by real-world assets.
  */
-contract AureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
+contract aureusToken is FunctionsClient, ConfirmedOwner, ERC20 {
     using FunctionsRequest for FunctionsRequest.Request;
     using Strings for uint256;
 
