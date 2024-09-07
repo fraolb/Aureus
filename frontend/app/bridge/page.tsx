@@ -20,7 +20,7 @@ const networks = [
   { name: "ETH", logo: "/tokenEth.svg" },
 ];
 
-const page = () => {
+const Page = () => {
   const [fromNetowork, setFromNetwork] = useState(networks[0]);
   const [toNetwork, setToNetwork] = useState(networks[1]);
 
@@ -130,4 +130,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;
