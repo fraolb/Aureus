@@ -1,8 +1,13 @@
-import { ethers } from "ethers";
+import { ethers, JsonRpcProvider } from "ethers";
 import AggregatorV3InterfaceABI from "@chainlink/contracts/abi/v0.8/AggregatorV3Interface.json";
 
 const fetchPriceFromChainlink = async (priceFeedAddress: string) => {
+  const RPC_URL =
+    "https://shape-sepolia.g.alchemy.com/v2/6Zf6r-FudlwTO2q8sBhmjKH_uFWMsF5v";
   const provider = new ethers.BrowserProvider(window.ethereum);
+  //   const provider = new JsonRpcProvider(RPC_URL, undefined, {
+  //     staticNetwork: true,
+  //   });
   const priceFeed = new ethers.Contract(
     priceFeedAddress,
     AggregatorV3InterfaceABI,

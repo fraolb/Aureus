@@ -16,7 +16,7 @@ const tokens = [
     name: "Silver",
     symbol: "SLV",
     logo: "/tokenSilver.svg",
-    priceFeed: "0xC5981F461d74c46eB4b0CF3f4Ec79f025573B0Ea",
+    priceFeed: "0x4b531A318B0e44B549F3b2f824721b3D0d51930A",
   },
   {
     name: "Bronze",
@@ -28,13 +28,13 @@ const tokens = [
     name: "ETH",
     symbol: "ETH",
     logo: "/tokenEth.svg",
-    priceFeed: "0xC5981F461d74c46eB4b0CF3f4Ec79f025573B0Ea",
+    priceFeed: "0x694AA1769357215DE4FAC081bf1f309aDC325306",
   },
   // Add more tokens with their priceFeed addresses
 ];
 
 const TradeCard = () => {
-  const [sellToken, setSellToken] = useState(tokens[0]);
+  const [sellToken, setSellToken] = useState(tokens[3]);
   const [buyToken, setBuyToken] = useState(tokens[1]);
   const [sellPrice, setSellPrice] = useState(0);
   const [sellPriceInUsd, setSellPriceInUsd] = useState(0);
@@ -49,13 +49,14 @@ const TradeCard = () => {
       );
       const buyTokenPrice = await fetchPriceFromChainlink(buyToken.priceFeed);
 
-      setSellPriceInUsd(sellTokenPriceInUsd);
-      setBuyPrice(buyTokenPrice);
+      setSellPriceInUsd(sellTokenPriceInUsd * sellPrice);
 
       // Update conversion whenever sellPrice or token prices change
       if (sellTokenPriceInUsd && buyTokenPrice) {
-        const convertedValue = sellPriceInUsd / buyTokenPrice;
+        const convertedValue =
+          (sellTokenPriceInUsd * sellPrice) / buyTokenPrice;
         setConversion(convertedValue);
+        setBuyPrice(buyTokenPrice * convertedValue);
       }
     };
 
