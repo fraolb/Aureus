@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.20;
 
 import {IRouterClient} from "@chainlink/contracts-ccip/src/v0.8/ccip/interfaces/IRouterClient.sol";
 import {OwnerIsCreator} from "@chainlink/contracts-ccip/src/v0.8/shared/access/OwnerIsCreator.sol";
@@ -60,11 +60,9 @@ contract TokenBridge is OwnerIsCreator, CCIPReceiver {
         uint64 thisChainSelector
     ) CCIPReceiver(router) {
         i_linkToken = LinkTokenInterface(link);
-        if (token == address(0)) {
-            i_token = new BridgedAUREUS(address(this));
-        } else {
-            i_token = BridgedAUREUS(token);
-        }
+
+        i_token = BridgedAUREUS(token);
+
         i_tokenHomeChainSelector = tokenHomeBaseChainSelector;
         i_thisChainSelector = thisChainSelector;
 
@@ -80,7 +78,7 @@ contract TokenBridge is OwnerIsCreator, CCIPReceiver {
         emit ChainSelectorSet(chainId, supported);
     }
 
-    function sendWethPayNative(
+    function sendAureusPayNative(
         uint64 destinationChainSelector,
         address destinationBridgedAureusAddress,
         address destinationChainReceiver,

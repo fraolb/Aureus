@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.20;
 
 import {aureusToken} from "./aureusToken.sol";
 
@@ -25,7 +25,32 @@ contract BridgedAUREUS is aureusToken {
         _;
     }
 
-    constructor(address bridge) {
+    constructor(
+        address bridge,
+        string memory tokenName,
+        string memory tokenSymbol,
+        address functionsRouter,
+        uint64 subId,
+        bytes32 donId,
+        string memory mintSource,
+        string memory redeemSource,
+        address usdcToken,
+        address tokenPriceFeed,
+        address usdcPriceFeed
+    )
+        aureusToken(
+            tokenName,
+            tokenSymbol,
+            functionsRouter,
+            subId,
+            donId,
+            mintSource,
+            redeemSource,
+            usdcToken,
+            tokenPriceFeed,
+            usdcPriceFeed
+        )
+    {
         i_bridge = bridge;
     }
 
@@ -39,33 +64,13 @@ contract BridgedAUREUS is aureusToken {
         _burn(from, amount);
     }
 
-    function _burn(address account, uint256 value) internal {
-        if (account == address(0)) {
-            revert BridgedAUREUS__ERC20InvalidSender(address(0));
-        }
-        _update(account, address(0), value);
-    }
-
-    function _mint(address account, uint256 value) internal {
-        if (account == address(0)) {
-            revert BridgedAUREUS__ERC20InvalidReceiver(address(0));
-        }
-        _update(address(0), account, value);
-    }
-
-    /**
-     * @dev Transfers a `value` amount of tokens from `from` to `to`, or alternatively mints (or burns) if `from`
-     * (or `to`) is the zero address. All customizations to transfers, mints, and burns should be done by overriding
-     * this function.
-     *
-     * Emits a {Transfer} event.
-     */
-    function _update(address from, address to, uint256 value) internal virtual {
-        if (from == address(0)) {
-            // Skipping this, we are using the address(this).balance as the total supply
-            // _totalSupply += value;
-        } else {
-            uint256 fromBalance = balanceOf[from];
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    ) internal virtual override {
+        if (from != address(0)) {
+            uint256 fromBalance = balanceOf(from);
             if (fromBalance < value) {
                 revert BridgedAUREUS__ERC20InsufficientBalance(
                     from,
@@ -74,23 +79,25 @@ contract BridgedAUREUS is aureusToken {
                 );
             }
             unchecked {
-                // Overflow not possible: value <= fromBalance <= totalSupply.
-                balanceOf[from] = fromBalance - value;
+                _decreaseBalance(from, value);
             }
         }
 
-        if (to == address(0)) {
+        if (to != address(0)) {
             unchecked {
-                // Skipping this, we are using the address(this).balance as the total supply
-                // _totalSupply -= value;
-            }
-        } else {
-            unchecked {
-                // Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint256.
-                balanceOf[to] += value;
+                _increaseBalance(to, value);
             }
         }
         emit Transfer(from, to, value);
+    }
+
+    function _decreaseBalance(address account, uint256 value) internal {
+        uint256 currentBalance = balanceOf(account);
+        _transfer(account, address(0), value); // Simplified balance decrease
+    }
+
+    function _increaseBalance(address account, uint256 value) internal {
+        _transfer(address(0), account, value); // Simplified balance increase
     }
 
     /*//////////////////////////////////////////////////////////////
