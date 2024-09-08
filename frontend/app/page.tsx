@@ -9,7 +9,7 @@ export default function Home() {
     <div className="min-h-screen bg-darkBg">
       <Header />
       <div className="flex flex-col gap-2 md:flex-row justify-around p-8 space-y-8 md:space-y-0">
-        <TokenChart tokenId="bitcoin" />
+        <TokenChart tokenId="tether-gold" />
         <TradeCard />
       </div>
     </div>
