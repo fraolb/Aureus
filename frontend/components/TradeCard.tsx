@@ -2,45 +2,43 @@
 
 import React, { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
-import fetchPriceFromChainlink from "./fetchPriceFromChainlink"; // Import the price fetch function
+import fetchPriceFromChainlink from "./fetchPriceFromChainlink";
+import { tokens } from "@/tokens";
+import BuyModal from "./BuyModal";
+import { ethers } from "ethers";
+import { AureusABI } from "@/ABI/AureusToken";
+import { writeContract } from "@wagmi/core";
+import { config } from "@/config";
+import { SignProtocolClient, SpMode, EvmChains } from "@ethsign/sp-sdk";
+import { privateKeyToAccount } from "viem/accounts";
 
-const tokens = [
-  // Define your tokens here
-  {
-    name: "Gold",
-    symbol: "GOLD",
-    logo: "/tokenGold.svg",
-    priceFeed: "0xC5981F461d74c46eB4b0CF3f4Ec79f025573B0Ea",
-  },
-  {
-    name: "Silver",
-    symbol: "SLV",
-    logo: "/tokenSilver.svg",
-    priceFeed: "0x4b531A318B0e44B549F3b2f824721b3D0d51930A",
-  },
-  {
-    name: "Bronze",
-    symbol: "BRZ",
-    logo: "/tokenBronze.svg",
-    priceFeed: "0xC5981F461d74c46eB4b0CF3f4Ec79f025573B0Ea",
-  },
-  {
-    name: "ETH",
-    symbol: "ETH",
-    logo: "/tokenEth.svg",
-    priceFeed: "0x694AA1769357215DE4FAC081bf1f309aDC325306",
-  },
-  // Add more tokens with their priceFeed addresses
-];
+interface Token {
+  name: string;
+  priceFeed: string;
+  chain: {
+    [network: string]: {
+      token: string;
+      bridge: string;
+    };
+  };
+}
+interface notificationInterfact {
+  message: string;
+  type: string;
+}
 
 const TradeCard = () => {
   const [sellToken, setSellToken] = useState(tokens[3]);
-  const [buyToken, setBuyToken] = useState(tokens[1]);
+  const [buyToken, setBuyToken] = useState(tokens[0]);
   const [sellPrice, setSellPrice] = useState(0);
   const [sellPriceInUsd, setSellPriceInUsd] = useState(0);
   const [buyPrice, setBuyPrice] = useState(0);
   const [conversion, setConversion] = useState(0);
   const { address } = useAccount();
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [notification, setNotification] =
+    useState<notificationInterfact | null>();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchPrices = async () => {
@@ -69,11 +67,80 @@ const TradeCard = () => {
   };
 
   const handleBuy = () => {
-    // buyTokens();
+    setIsModalOpen(true);
+  };
+
+  const handleApprove = async () => {
+    setLoading(true);
+    try {
+      if (!window.ethereum) {
+        alert("MetaMask is not installed!");
+        return;
+      }
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = provider.getSigner();
+
+      const amount = ethers.parseUnits(sellPrice.toString(), 18);
+
+      const client = new SignProtocolClient(SpMode.OnChain, {
+        chain: EvmChains.sepolia,
+      });
+
+      const createAttestationRes = await client.createAttestation({
+        schemaId: "0x1f9",
+        data: { address: (await signer).address, amount: amount, type: "mint" },
+        indexingValue: "xxx",
+      });
+      if (createAttestationRes) {
+        const result = await writeContract(config, {
+          abi: AureusABI,
+          address: "0xa2e1dbdD398C17Ab87CE103BeE079fb8DD4b4024",
+          functionName: "sendMintRequest",
+          args: [amount],
+          chainId: 11155111,
+        });
+
+        console.log("Transaction result:", result);
+        setTimeout(
+          () =>
+            setNotification({
+              message: "Transactio submitted!",
+              type: "success",
+            }),
+          3000
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      setTimeout(
+        () =>
+          setNotification({
+            message: "Transactio Failed!",
+            type: "error",
+          }),
+        3000
+      );
+    }
+    setTimeout(() => setNotification(null), 5000);
+    setTimeout(() => setLoading(false), 3000);
+    setTimeout(() => setIsModalOpen(false), 3000);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
   };
 
   return (
     <div className="bg-cardBg bg-opacity-10 p-8 rounded-lg text-white w-full md:w-1/3">
+      {notification && (
+        <div
+          className={`fixed top-0 left-1/2 transform -translate-x-1/2 mt-12 p-2 px-4 w-3/4 rounded shadow-lg z-10 ${
+            notification.type === "success" ? "bg-green-500" : "bg-red-500"
+          } text-white`}
+        >
+          {notification.message}
+        </div>
+      )}
       <div className="flex flex-col items-center justify-center">
         <div className="flex flex-col bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
           <div className="flex justify-between items-center mb-6">
@@ -166,6 +233,12 @@ const TradeCard = () => {
           Buy
         </button>
       </div>
+      <BuyModal
+        isOpen={isModalOpen}
+        loading={loading}
+        onClose={handleCloseModal}
+        onApprove={handleApprove}
+      />
     </div>
   );
 };
