@@ -1,4 +1,22 @@
-export const tokens = [
+interface ChainDetails {
+  token: `0x${string}`;
+  bridge: `0x${string}`;
+}
+
+interface ChainType {
+  sepolia: ChainDetails;
+  base: ChainDetails;
+}
+
+interface TokenType {
+  name: string;
+  symbol: string;
+  logo: string;
+  priceFeed: `0x${string}`;
+  chain: ChainType;
+}
+
+export const tokens: TokenType[] = [
   {
     name: "Gold",
     symbol: "GOLD",
